@@ -20,21 +20,21 @@ static int cdata_open(struct inode *inode, struct file *filp)
 	int minor;
 
 	minor = MINOR(inode->i_rdev);
-	printk(KERN_ALERT "cdata: in cdata_open(minor = %d)\n", minor);
-
+	printk(KERN_ALERT "cdata: open(minor=%d)\n", minor);
+	printk(KERN_ALERT "cdata: open(file struct address=%p)\n", filp);
 	return 0;
 }
 
 static int cdata_ioctl(struct inode *inode, struct file *filp, 
 			unsigned int cmd, unsigned long arg)
 {
-	printk(KERN_ALERT "cdata: in cdata_ioctl(cmd=%d)\n", cmd);
+	printk(KERN_ALERT "cdata: ioctl(cmd=%d)\n", cmd);
 	switch (cmd) {
 	case IOCTL_EMPTY:
-		printk(KERN_ALERT "cdata: in ioctl: IOCTL_EMPTY\n");
+		printk(KERN_ALERT "cdata: ioctl(IOCTL_EMPTY)\n");
 		break;
 	case IOCTL_SYNC:
-		printk(KERN_ALERT "cdata: in ioctl: IOCTL_SYNC\n");
+		printk(KERN_ALERT "cdata: ioctl(IOCTL_SYNC)\n");
 		break;
 	default:
 		return -ENOTTY;
@@ -46,20 +46,20 @@ static int cdata_ioctl(struct inode *inode, struct file *filp,
 static ssize_t cdata_read(struct file *filp, char *buf, 
 				size_t size, loff_t *off)
 {
-	printk(KERN_ALERT "cdata: in cdata_read()\n");
+	printk(KERN_ALERT "cdata: read\n");
 	return 0;
 }
 
 static ssize_t cdata_write(struct file *filp, const char *buf, 
 				size_t size, loff_t *off)
 {
-	printk(KERN_ALERT "cdata_write: %s\n", buf);
+	printk(KERN_ALERT "cdata: write(%s)\n", buf);
 	return 0;
 }
 
 static int cdata_release(struct inode *inode, struct file *filp)
 {
-	printk(KERN_ALERT "cdata: in cdata_release()\n");
+	printk(KERN_ALERT "cdata: release\n");
 	return 0;
 }
 
