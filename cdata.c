@@ -6,14 +6,14 @@
 #include <linux/miscdevice.h>
 #include <linux/wait.h>
 #include <asm/io.h>
+#include "cdata_ioctl.h"
 
 #ifdef CONFIG_SMP
 #define __SMP__
 #endif
 
 #define	CDATA_MAJOR 121 
-#define IOCTL_EMPTY 0
-#define IOCTL_SYNC 1
+
 
 static int cdata_open(struct inode *inode, struct file *filp)
 {
@@ -28,7 +28,7 @@ static int cdata_open(struct inode *inode, struct file *filp)
 static int cdata_ioctl(struct inode *inode, struct file *filp, 
 			unsigned int cmd, unsigned long arg)
 {
-	printk(KERN_ALERT "cdata: in cdata_ioctl()\n");
+	printk(KERN_ALERT "cdata: in cdata_ioctl(cmd=%d)\n", cmd);
 	switch (cmd) {
 	case IOCTL_EMPTY:
 		printk(KERN_ALERT "cdata: in ioctl: IOCTL_EMPTY\n");
@@ -37,7 +37,7 @@ static int cdata_ioctl(struct inode *inode, struct file *filp,
 		printk(KERN_ALERT "cdata: in ioctl: IOCTL_SYNC\n");
 		break;
 	default:
-		return -1;
+		return -ENOTTY;
 	}
 
 	return 0;
@@ -47,6 +47,7 @@ static ssize_t cdata_read(struct file *filp, char *buf,
 				size_t size, loff_t *off)
 {
 	printk(KERN_ALERT "cdata: in cdata_read()\n");
+	return 0;
 }
 
 static ssize_t cdata_write(struct file *filp, const char *buf, 
