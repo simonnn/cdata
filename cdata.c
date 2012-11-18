@@ -73,9 +73,34 @@ static ssize_t cdata_read(struct file *filp, char *buf,
 	return 0;
 }
 
+/* reentrnat issue due to
+ * 1. first open()
+ * 2. second fork()
+ * 3. based on multi-processor(SMP)
+ * 4. based on single-processor
+ * 		- with kernel API that put current process to sleep
+ * 		- means with process scheduling
+ *
+ * Becuase there's only one file struct.
+ * 1. SMP must be with reentrant issue.
+ * 2. For single processor cdata_write() for p2,
+ *    it will run only when p1 sleep.
+ *    That is 
+ * 	    - (O) cdata_write() return
+ * 	    - (X) p1 state is set to sleep by process scheduling before return */
+
+/* Set process sleep API
+ * 	- copy_from_user: sometimes user space memory is invalid
+ * 					  due to swap to disk
+ * 	- copy_to_user
+ * 	- kmalloc: to retrieve lack memory page
+ * 	- vmalloc: to retrieve lack memory page */
 static ssize_t cdata_write(struct file *filp, const char *buf, 
 				size_t size, loff_t *off)
 {
+	/* reentrant protect start */
+	//mutex_lock(...);
+	
 	struct cdata_t *cdata = (struct cdata_t *)filp->private_data;
 	int i;
 
@@ -89,6 +114,10 @@ static ssize_t cdata_write(struct file *filp, const char *buf,
 			return -EFAULT;
 	}
 	//printk(KERN_ALERT "cdata: write(%s)\n", buf);
+	
+	//mutex_unlock(...);
+	/* reentrant protect end */
+	
 	return 0;
 }
 
