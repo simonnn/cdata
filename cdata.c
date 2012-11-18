@@ -107,9 +107,10 @@ static ssize_t cdata_write(struct file *filp, const char *buf,
 	if (size == 0) return 0;
 
 	for (i = 0; i < size; i++) {
-		if (cdata->index >= BUFFER_SIZE)
-			return -EFAULT;
-
+		if (cdata->index >= BUFFER_SIZE) {
+			current->state = TASK_UNINTERRUPTIBLE;
+			schedule(); /* call scheduler to continue scheduling */
+		}
 		if (copy_from_user(&cdata->data[cdata->index++], &buf[i], 1))
 			return -EFAULT;
 	}
