@@ -10,10 +10,10 @@ int main(int argc, char *argv[])
 	char buf[64];
 
 	pid = fork();
-	if (pid == 0) {
+	if (pid > 0) {
 		/* parent */
 		sprintf(buf, "[%d]I'm parent", getpid());
-	} else if (pid > 0) {
+	} else if (pid == 0) {
 		/* child */
 		sprintf(buf, "[%d]I'm child", getpid());
 	} else {
