@@ -1,15 +1,17 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/sched.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
-#include <linux/wait.h>
 #include <asm/io.h>
 /* for copy_to_user()/copy_from_user() */
 #include <asm/uaccess.h>
 /* for wait queue */
 #include <linux/sched.h>
+#include <linux/wait.h>
+/* for semaphore */
+#include <linux/sched.h>
+#include <asm/semaphore.h>
 /* for ioctl */
 #include "cdata_ioctl.h"
 
@@ -21,13 +23,13 @@
 #define	CDATA_MAJOR 121 
 #define BUFFER_SIZE 1024
 
-
 struct cdata_t {
 	char data[BUFFER_SIZE];
 	int index;
 	wait_queue_head_t	wait;
 };
 
+static DECLARE_MUTEX(cdata_sem);
 
 static int cdata_open(struct inode *inode, struct file *filp)
 {
@@ -113,6 +115,7 @@ static ssize_t cdata_write(struct file *filp, const char *buf,
 	
 	/* reentrant protect start */
 	//mutex_lock(...);
+	down(&cdata_sem);
 	
 	for (i = 0; i < size; i++) {
 		if (cdata->index >= BUFFER_SIZE) {
@@ -121,7 +124,9 @@ static ssize_t cdata_write(struct file *filp, const char *buf,
 			schedule(); /* call scheduler to continue scheduling */
 
 			/* NO need to change 'current->state = TASK_RUNNING'
-			 * Because there must already be done somewhere */
+			 * Because there must already be done somewhere.
+			 *
+			 * We write only for readable purpose. */
 			current->state = TASK_RUNNING;
 			remove_wait_queue(&cdata->wait, &wait);
 		}
@@ -130,6 +135,7 @@ static ssize_t cdata_write(struct file *filp, const char *buf,
 	}
 	//printk(KERN_ALERT "cdata: write(%s)\n", buf);
 	
+	up(&cdata_sem);
 	//mutex_unlock(...);
 	/* reentrant protect end */
 	
