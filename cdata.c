@@ -8,8 +8,11 @@
 #include <asm/io.h>
 /* for copy_to_user()/copy_from_user() */
 #include <asm/uaccess.h>
+/* for wait queue */
+#include <linux/sched.h>
 /* for ioctl */
 #include "cdata_ioctl.h"
+
 
 #ifdef CONFIG_SMP
 #define __SMP__
@@ -22,6 +25,7 @@
 struct cdata_t {
 	char data[BUFFER_SIZE];
 	int index;
+	wait_queue_head_t	wait;
 };
 
 
@@ -38,6 +42,7 @@ static int cdata_open(struct inode *inode, struct file *filp)
 	cdata = (struct cdata_t *)kmalloc(sizeof(struct cdata_t), GFP_KERNEL);
 	memset(cdata->data, '\0', BUFFER_SIZE);
 	cdata->index = 0;
+	init_waitqueue_head(&cdata->wait);
 	
 	filp->private_data = (void *)cdata;
 	return 0;
@@ -98,18 +103,27 @@ static ssize_t cdata_read(struct file *filp, char *buf,
 static ssize_t cdata_write(struct file *filp, const char *buf, 
 				size_t size, loff_t *off)
 {
-	/* reentrant protect start */
-	//mutex_lock(...);
-	
+
 	struct cdata_t *cdata = (struct cdata_t *)filp->private_data;
+	DECLARE_WAITQUEUE(wait, current);
 	int i;
 
 	if (size == 0) return 0;
-
+	
+	
+	/* reentrant protect start */
+	//mutex_lock(...);
+	
 	for (i = 0; i < size; i++) {
 		if (cdata->index >= BUFFER_SIZE) {
+			add_wait_queue(&cdata->wait, &wait);
 			current->state = TASK_UNINTERRUPTIBLE;
 			schedule(); /* call scheduler to continue scheduling */
+
+			/* NO need to change 'current->state = TASK_RUNNING'
+			 * Because there must already be done somewhere */
+			current->state = TASK_RUNNING;
+			remove_wait_queue(&cdata->wait, &wait);
 		}
 		if (copy_from_user(&cdata->data[cdata->index++], &buf[i], 1))
 			return -EFAULT;
