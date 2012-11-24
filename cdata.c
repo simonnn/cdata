@@ -114,6 +114,7 @@ static ssize_t cdata_write(struct file *filp, const char *buf,
 	
 	
 	/* reentrant protect start */
+	/* critical section start */
 	//mutex_lock(...);
 	down(&cdata_sem);
 	
@@ -121,7 +122,9 @@ static ssize_t cdata_write(struct file *filp, const char *buf,
 		if (cdata->index >= BUFFER_SIZE) {
 			add_wait_queue(&cdata->wait, &wait);
 			current->state = TASK_UNINTERRUPTIBLE;
+			up(&cdata_sem);
 			schedule(); /* call scheduler to continue scheduling */
+			down(&cdata_sem);
 
 			/* NO need to change 'current->state = TASK_RUNNING'
 			 * Because there must already be done somewhere.
@@ -137,6 +140,7 @@ static ssize_t cdata_write(struct file *filp, const char *buf,
 	
 	up(&cdata_sem);
 	//mutex_unlock(...);
+	/* critical section end */
 	/* reentrant protect end */
 	
 	return 0;
