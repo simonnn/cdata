@@ -23,13 +23,36 @@
 #define	CDATA_MAJOR 121 
 #define BUFFER_SIZE 1024
 
+#define LCD_WIDTH (240)
+#define LCD_HEIGHT (320)
+#define LCD_BPP (4)
+#define LCD_SIZE (LCD_WIDTH*LCD_HEIGHT*LCD_BPP)
+
 struct cdata_t {
 	char data[BUFFER_SIZE];
 	int index;
+	char *iomem;
 	wait_queue_head_t	wait;
+	struct timer_list timer;
 };
 
 static DECLARE_MUTEX(cdata_sem);
+
+void flush_lcd(unsigned long priv)
+{
+	struct cdata_t *cdata = (struct cdata_t *)priv;
+	char *fb = cdata->iomem;
+	int index = cdata->index;
+	int i;
+
+	for (i = 0; i < index; i++) {
+		writeb(cdata->data[i], fb++);
+	}
+	cdata->index = 0;
+
+	/* wake up process */
+	current->state = TASK_RUNNING;
+}
 
 static int cdata_open(struct inode *inode, struct file *filp)
 {
@@ -44,7 +67,9 @@ static int cdata_open(struct inode *inode, struct file *filp)
 	cdata = (struct cdata_t *)kmalloc(sizeof(struct cdata_t), GFP_KERNEL);
 	memset(cdata->data, '\0', BUFFER_SIZE);
 	cdata->index = 0;
+	cdata->iomem = ioremap(0x33f00000, LCD_SIZE);
 	init_waitqueue_head(&cdata->wait);
+	init_timer(&cdata->timer);
 	
 	filp->private_data = (void *)cdata;
 	return 0;
@@ -122,6 +147,13 @@ static ssize_t cdata_write(struct file *filp, const char *buf,
 		if (cdata->index >= BUFFER_SIZE) {
 			add_wait_queue(&cdata->wait, &wait);
 			current->state = TASK_UNINTERRUPTIBLE;
+
+			/* set kernel timer */
+			cdata->timer.expires = jiffies + 500;
+			cdata->timer.data = (unsigned long)cdata;
+			cdata->timer.function = flush_lcd;
+			add_timer(&cdata->timer);
+
 			up(&cdata_sem);
 			schedule(); /* call scheduler to continue scheduling */
 			down(&cdata_sem);
@@ -148,7 +180,11 @@ static ssize_t cdata_write(struct file *filp, const char *buf,
 
 static int cdata_release(struct inode *inode, struct file *filp)
 {
+	struct cdata_t *cdata = (struct cdata_t *)filp->private_data;
+
 	printk(KERN_ALERT "cdata: release\n");
+			
+	del_timer(&cdata->timer);
 
 	if (!filp->private_data)
 		kfree(filp->private_data);
