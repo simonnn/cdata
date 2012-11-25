@@ -31,8 +31,9 @@
 struct cdata_t {
 	char data[BUFFER_SIZE];
 	int index;
+	int offset;
 	char *iomem;
-	wait_queue_head_t	wait;
+	wait_queue_head_t wait;
 	struct timer_list timer;
 };
 
@@ -43,15 +44,25 @@ void flush_lcd(unsigned long priv)
 	struct cdata_t *cdata = (struct cdata_t *)priv;
 	char *fb = cdata->iomem;
 	int index = cdata->index;
+	int offset = cdata->offset;
 	int i;
 
 	for (i = 0; i < index; i++) {
-		writeb(cdata->data[i], fb++);
+		writeb(cdata->data[i], fb + offset);
+
+		if (offset >= LCD_SIZE)
+			offset = 0;
 	}
 	cdata->index = 0;
+	cdata->offset = offset;
 
 	/* wake up process */
-	current->state = TASK_RUNNING;
+	wake_up(&cdata->wait);
+	/* That's a wrong way below to wake up process,
+	 * Because it's a ISR, so there's no current and schedule().
+	 *
+	 * 	"current->state = TASK_RUNNING;"
+	 */
 }
 
 static int cdata_open(struct inode *inode, struct file *filp)
@@ -146,10 +157,13 @@ static ssize_t cdata_write(struct file *filp, const char *buf,
 	for (i = 0; i < size; i++) {
 		if (cdata->index >= BUFFER_SIZE) {
 			add_wait_queue(&cdata->wait, &wait);
-			current->state = TASK_UNINTERRUPTIBLE;
+			/* driver CANNOT use TASK_UNINTERRUPTIBLE 
+			 * 	"current->state = TASK_UNINTERRUPTIBLE;"
+			 */
+			current->state = TASK_INTERRUPTIBLE;
 
 			/* set kernel timer */
-			cdata->timer.expires = jiffies + 500;
+			cdata->timer.expires = jiffies + 300;
 			cdata->timer.data = (unsigned long)cdata;
 			cdata->timer.function = flush_lcd;
 			add_timer(&cdata->timer);
