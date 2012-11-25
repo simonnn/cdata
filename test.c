@@ -14,6 +14,7 @@ int main(int argc, char *argv[])
 	unsigned char *fb;
 	int i;
 
+
 #if 0
 	pid = fork();
 	if (pid > 0) {
@@ -39,6 +40,7 @@ int main(int argc, char *argv[])
 	write(fd, buf, sizeof(buf));
 #endif
 
+#if 0
 	/* mmap() */
 	fb = (unsigned char *)mmap(0, 240*320*4, PROT_READ | PROT_WRITE,
 			MAP_SHARED, fd, 0);
@@ -48,11 +50,12 @@ int main(int argc, char *argv[])
 		*fb = 0x00; fb++;
 		*fb = 0x00; fb++;
 	}
+#endif
 
-#if 0
+#if 1
 	/* ioremap, kernel timer */
 	while (1) {
-		write(fd, p, 4);
+		write(fd, p, sizeof(p));
 	}
 #endif
 
