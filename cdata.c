@@ -49,6 +49,7 @@ void flush_lcd(unsigned long priv)
 
 	for (i = 0; i < index; i++) {
 		writeb(cdata->data[i], fb + offset);
+		offset++;
 
 		if (offset >= LCD_SIZE)
 			offset = 0;
@@ -78,6 +79,7 @@ static int cdata_open(struct inode *inode, struct file *filp)
 	cdata = (struct cdata_t *)kmalloc(sizeof(struct cdata_t), GFP_KERNEL);
 	memset(cdata->data, '\0', BUFFER_SIZE);
 	cdata->index = 0;
+	cdata->offset = 0;
 	cdata->iomem = ioremap(0x33f00000, LCD_SIZE);
 	init_waitqueue_head(&cdata->wait);
 	init_timer(&cdata->timer);
